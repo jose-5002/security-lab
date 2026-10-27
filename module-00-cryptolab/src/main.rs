@@ -154,12 +154,19 @@ fn run_codec(args: &[String]) -> Result<(), String> {
 }
 
 fn run_otp(args: &[String]) -> Result<(), String> {
-    if args[0].as_str() == "misuse-demo"{
-        misuse_demo();
-    }
     if args.is_empty() || args.len() < 4 {
+         if args[0].as_str() == "misuse-demo"{
+            let result = misuse_demo()?;
+            if result{
+                println!("Misuse demo successful: XOR of two ciphertexts matches XOR of two plaintexts.");
+            } else {
+                println!("Misuse demo failed: XOR of two ciphertexts does not match XOR of two plaintexts.");
+            }
+            return Ok(());
+        }
         return Err("usage: cryptolab otp <encrypt|decrypt> <in> <key_file> <out>".into());
     }
+   
 
     let input_file = args[1].as_str();
     let data: Vec<u8> = std::fs::read(input_file).map_err(|e| format!("couldn't read {input_file}: {e}"))?;
@@ -267,10 +274,8 @@ pub fn misuse_demo() -> Result<bool, String>{
     let combined = xor(&ciphertext1, &ciphertext2)?;
     let initial_combo = xor(text1, text2)?;
 
-    println!("XOR of two ciphertext");
-    print_decoded_result(&combined);
-    println!("original XOR of plaintext");
-    print_decoded_result(&initial_combo);
+    println!("XOR of two ciphertext: {:?}", combined);
+    println!("original XOR of plaintext: {:?}", initial_combo);
 
     Ok(combined==initial_combo)
 }
