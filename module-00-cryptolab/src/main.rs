@@ -324,11 +324,11 @@ mod tests {
         let key_file = "key.hex";
         let cipher_file = "ct.bin";
 
-        let args: Vec<String> = vec!["encrypt".to_string(), "{msg_file}".to_string(), "{key_file}".to_string(), "{cipher_file}".to_string() ];
+        let args: Vec<String> = vec!["encrypt".to_string(), msg_file.to_string(), key_file.to_string(), cipher_file.to_string() ];
         run_otp(&args).unwrap();
 
         let msg2_file = "msg2.txt";
-        let args2: Vec<String> = vec!["decrypt".to_string(), "{cipher_file}".to_string(), "{key_file}".to_string(), "{msg2_file}".to_string() ];
+        let args2: Vec<String> = vec!["decrypt".to_string(), cipher_file.to_string(), key_file.to_string(), msg2_file.to_string() ];
         run_otp(&args2).unwrap();
 
         let data1 = std::fs::read(msg_file).unwrap();
@@ -336,5 +336,15 @@ mod tests {
 
         assert_eq!(data1, data2)
 
+    }
+
+    #[test]
+    fn xor_trip(){
+        let text = b"Hello, World!";
+        let mut key = vec![0u8; text.len()];
+        OsRng.fill_bytes(&mut key);
+        let ciphertext = xor(text, &key).unwrap();
+        let decrypted = xor(&ciphertext, &key).unwrap();
+        assert_eq!(text, &decrypted[..]);
     }
 }
