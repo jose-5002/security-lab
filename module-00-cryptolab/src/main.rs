@@ -1,25 +1,24 @@
-use std::env;
-use std::process;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
-use rand::{rngs::OsRng, RngCore};
+use rand::{RngCore, rngs::OsRng};
+use std::env;
+use std::process;
 
-fn hex_encode(data: &[u8]) -> String{
+fn hex_encode(data: &[u8]) -> String {
     let mut result = String::with_capacity(data.len() * 2);
     let hex_chars = b"0123456789abcdef";
 
-    for &byte in data{
+    for &byte in data {
         let high = (byte >> 4) as usize;
         let low = (byte & 0x0F) as usize;
         result.push(hex_chars[high] as char);
         result.push(hex_chars[low] as char);
     }
     result
-
 }
 
 fn hex_decode(hex_str: &str) -> Result<Vec<u8>, String> {
-    if hex_str.len() % 2 != 0 {
+    if !hex_str.len().is_multiple_of(2) {
         return Err("Hex string must have an even length".into());
     }
 
@@ -44,8 +43,6 @@ fn hex_decode(hex_str: &str) -> Result<Vec<u8>, String> {
     Ok(bytes)
 }
 
-
-
 fn b64_encode(data: &[u8]) -> String {
     STANDARD.encode(data)
 }
@@ -69,17 +66,16 @@ fn print_decoded_result(data: &[u8]) {
     }
 }
 
-
 fn xor(a: &[u8], b: &[u8]) -> Result<Vec<u8>, String> {
-    if a.len() != b.len(){
-        return Err("Invalid key length".to_string())
+    if a.len() != b.len() {
+        return Err("Invalid key length".to_string());
     }
     Ok(a.iter().zip(b.iter()).map(|(x, y)| x ^ y).collect())
 }
 
 pub fn caesar_shift(text: &str, shift: i32) -> String {
     // Wrap negative and large shifts into the valid 0..25 range
-    let shift = (((shift % 26) + 26) % 26) as u8;
+    let shift = shift.rem_euclid(26) as u8;
 
     text.chars()
         .map(|c| match c {
@@ -92,8 +88,8 @@ pub fn caesar_shift(text: &str, shift: i32) -> String {
 
 const ENGLISH_FREQUENCIES: [f64; 26] = [
     8.17, 1.29, 2.78, 4.25, 12.70, 2.23, 2.02, 6.09, 6.97, // A - I
-    0.15, 0.77, 4.03, 2.41, 6.75, 7.51, 1.93, 0.10, 5.99,  // J - R (J = 0.15)
-    6.33, 9.06, 2.76, 0.98, 2.36, 0.15, 1.97, 0.07,        // S - Z (X = 0.15)
+    0.15, 0.77, 4.03, 2.41, 6.75, 7.51, 1.93, 0.10, 5.99, // J - R (J = 0.15)
+    6.33, 9.06, 2.76, 0.98, 2.36, 0.15, 1.97, 0.07, // S - Z (X = 0.15)
 ];
 
 pub fn score_text(text: &str) -> f64 {
@@ -124,30 +120,29 @@ pub fn score_text(text: &str) -> f64 {
 }
 
 fn run_codec(args: &[String]) -> Result<(), String> {
-
     if args.is_empty() || args.len() < 2 {
         return Err("usage: codec <hex-encode|hex-decode|b64-encode|b64-decode> <value>".into());
     }
 
     match args.first().map(String::as_str) {
         Some("hex-encode") => {
-            println!("{}", hex_encode(&( args[1].as_str().as_bytes() ) ));
+            println!("{}", hex_encode(args[1].as_bytes()));
             Ok(())
         }
         Some("hex-decode") => {
-            let decode = hex_decode(&(args[1].as_str() ))?;
+            let decode = hex_decode(args[1].as_str())?;
             print_decoded_result(&decode);
-            Ok(()) 
+            Ok(())
         }
 
-        Some("b64-encode") => { 
-            println!("{}", b64_encode(&( args[1].as_str().as_bytes())) );
-            Ok(()) 
+        Some("b64-encode") => {
+            println!("{}", b64_encode(args[1].as_bytes()));
+            Ok(())
         }
-        Some("b64-decode") => { 
-            let decode = b64_decode(&(args[1].as_str() )).map_err(|e| e.to_string())?;
+        Some("b64-decode") => {
+            let decode = b64_decode(args[1].as_str()).map_err(|e| e.to_string())?;
             print_decoded_result(&decode);
-            Ok(()) 
+            Ok(())
         }
         _ => Err("usage: codec <hex-encode|hex-decode|b64-encode|b64-decode> <value>".into()),
     }
@@ -155,21 +150,25 @@ fn run_codec(args: &[String]) -> Result<(), String> {
 
 fn run_otp(args: &[String]) -> Result<(), String> {
     if args.is_empty() || args.len() < 4 {
-         if args[0].as_str() == "misuse-demo"{
+        if args[0].as_str() == "misuse-demo" {
             let result = misuse_demo()?;
-            if result{
-                println!("Misuse demo successful: XOR of two ciphertexts matches XOR of two plaintexts.");
+            if result {
+                println!(
+                    "Misuse demo successful: XOR of two ciphertexts matches XOR of two plaintexts."
+                );
             } else {
-                println!("Misuse demo failed: XOR of two ciphertexts does not match XOR of two plaintexts.");
+                println!(
+                    "Misuse demo failed: XOR of two ciphertexts does not match XOR of two plaintexts."
+                );
             }
             return Ok(());
         }
         return Err("usage: cryptolab otp <encrypt|decrypt> <in> <key_file> <out>".into());
     }
-   
 
     let input_file = args[1].as_str();
-    let data: Vec<u8> = std::fs::read(input_file).map_err(|e| format!("couldn't read {input_file}: {e}"))?;
+    let data: Vec<u8> =
+        std::fs::read(input_file).map_err(|e| format!("couldn't read {input_file}: {e}"))?;
 
     let key_file = args[2].as_str();
     let output_file = args[3].as_str();
@@ -178,21 +177,24 @@ fn run_otp(args: &[String]) -> Result<(), String> {
         Some("encrypt") => {
             let mut key = vec![0u8; data.len()];
             OsRng.fill_bytes(&mut key);
-            std::fs::write(key_file, &key).map_err(|e| format!("couldn't write {key_file}: {e}"))?;
+            std::fs::write(key_file, &key)
+                .map_err(|e| format!("couldn't write {key_file}: {e}"))?;
 
             let ciphertext = xor(&data, &key)?;
-            std::fs::write(output_file, &ciphertext).map_err(|e| format!("couldn't write {output_file}: {e}"))?;
+            std::fs::write(output_file, &ciphertext)
+                .map_err(|e| format!("couldn't write {output_file}: {e}"))?;
             Ok(())
         }
 
         Some("decrypt") => {
-            let key:Vec<u8> = std::fs::read(key_file).map_err(|e| format!("couldn't read {key_file}: {e}"))?;
+            let key: Vec<u8> =
+                std::fs::read(key_file).map_err(|e| format!("couldn't read {key_file}: {e}"))?;
             let org_msg = xor(&data, &key)?;
-            std::fs::write(output_file, &org_msg).map_err(|e| format!("couldn't write {output_file}: {e}"))?;
+            std::fs::write(output_file, &org_msg)
+                .map_err(|e| format!("couldn't write {output_file}: {e}"))?;
             Ok(())
         }
         _ => Err("usage: cryptolab otp <encrypt|decrypt> <in> <key_file> <out>".into()),
-
     }
 }
 
@@ -249,20 +251,23 @@ pub fn run_caesar(args: &[String]) -> Result<(), String> {
             }
 
             println!("\n----------------------------------------");
-            println!("WINNER: Shift {} (Score: {:.3})", winner_shift, highest_score);
+            println!(
+                "WINNER: Shift {} (Score: {:.3})",
+                winner_shift, highest_score
+            );
             println!("Decrypted: {}", winner_text);
         }
         other => {
             return Err(format!(
                 "Unknown caesar action: '{other}'. Expected 'encrypt', 'decrypt', or 'crack'."
-            ))
+            ));
         }
     }
 
     Ok(())
 }
 
-pub fn misuse_demo() -> Result<bool, String>{
+pub fn misuse_demo() -> Result<bool, String> {
     let text1 = b"THE EAGLE FLIES AT MIDNIGHT";
     let text2 = b"THE ENEMY RETREATS AT DAWN!";
     let mut key = vec![0u8; text2.len()];
@@ -277,9 +282,8 @@ pub fn misuse_demo() -> Result<bool, String>{
     println!("XOR of two ciphertext: {:?}", combined);
     println!("original XOR of plaintext: {:?}", initial_combo);
 
-    Ok(combined==initial_combo)
+    Ok(combined == initial_combo)
 }
-
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -301,10 +305,7 @@ fn main() {
         eprintln!("Error: {e}");
         process::exit(1);
     }
-
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -317,7 +318,7 @@ mod tests {
 
     #[test]
     fn caesar_trip() {
-        assert_eq!(caesar_shift("attack at dawn", 3), "dwwdfn dw gdzq" )
+        assert_eq!(caesar_shift("attack at dawn", 3), "dwwdfn dw gdzq")
     }
 
     #[test]
@@ -329,22 +330,31 @@ mod tests {
         let key_file = "key.hex";
         let cipher_file = "ct.bin";
 
-        let args: Vec<String> = vec!["encrypt".to_string(), msg_file.to_string(), key_file.to_string(), cipher_file.to_string() ];
+        let args: Vec<String> = vec![
+            "encrypt".to_string(),
+            msg_file.to_string(),
+            key_file.to_string(),
+            cipher_file.to_string(),
+        ];
         run_otp(&args).unwrap();
 
         let msg2_file = "msg2.txt";
-        let args2: Vec<String> = vec!["decrypt".to_string(), cipher_file.to_string(), key_file.to_string(), msg2_file.to_string() ];
+        let args2: Vec<String> = vec![
+            "decrypt".to_string(),
+            cipher_file.to_string(),
+            key_file.to_string(),
+            msg2_file.to_string(),
+        ];
         run_otp(&args2).unwrap();
 
         let data1 = std::fs::read(msg_file).unwrap();
         let data2 = std::fs::read(msg2_file).unwrap();
 
         assert_eq!(data1, data2)
-
     }
 
     #[test]
-    fn xor_trip(){
+    fn xor_trip() {
         let text = b"Hello, World!";
         let mut key = vec![0u8; text.len()];
         OsRng.fill_bytes(&mut key);
