@@ -1,0 +1,12 @@
+[package]
+name = "module-00-cryptolab"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rand = "0.8"
+base64 = "0.23"
+
+[[bin]]
+name = "cryptolab"
+path = "src/main.rs"

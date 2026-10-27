@@ -1,0 +1,4 @@
+[workspace]
+members = ["module-00-cryptolab"] 
+resolver = "2"
+
